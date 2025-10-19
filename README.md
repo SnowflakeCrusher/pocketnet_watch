@@ -1,145 +1,190 @@
-# Pocketnet Watch Script
+# Pocketnet Watch
 
-This script monitors the status of a Pocketnet node by displaying various metrics and logs. It is designed to run in a loop, updating the display every 5 seconds and clearing the screen every 15 cycles.
+A real-time monitoring dashboard for Pocketnet nodes with a beautiful, flicker-free terminal interface.
 
-## Features
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Python](https://img.shields.io/badge/python-3.10+-green)
+![License](https://img.shields.io/badge/license-MIT-orange)
 
-- **Enhanced Metrics**:
-  - Wallet balance, unconfirmed balance, and staking details.
-  - Node version, network type, and connection details (inbound/outbound).
-  - Blockchain sync status, block height, headers, and difficulty.
-  - Network hashrate and mempool information.
-  - System resource usage (CPU, memory, disk, and swap).
-  - Stake reports (last 24h, 7d, 30d, 365d) and staking weight percentages.
-- **Improved UI**:
-  - Boxed UI for better readability (optional compact mode available).
-  - Dynamic formatting with commas and decimal precision for numbers.
-  - Clear screen every configurable number of cycles.
-- **Log Integration**:
-  - Displays the last 5 lines of the debug log.
-  - Includes the last 3 lines of `probe_nodes.log` if available.
-- **Additional Features**:
-  - Displays the highest balance wallet address.
-  - Shows node uptime and system load averages.
-  - Provides formatted time differences for staking and uptime metrics.
-  - Retrieves staking info, including expected time for the next reward.
+## Overview
 
-## Prerequisites
+Pocketnet Watch is a comprehensive monitoring tool for Pocketnet node operators. Built with Python and the curses library, it provides a smooth, professional terminal UI similar to `htop` or `vim` - no more flickering screens!
 
-- A running Pocketnet node.
-- `jq` for JSON parsing.
-- `pocketcoin-cli` configured and accessible in your PATH.
+## Key Features
 
-## Installation
+- **🎨 Flicker-free display** - Smooth, professional curses-based UI
+- **📊 Real-time metrics** - Node status, blockchain, staking, wallet, and system resources
+- **⚠️ Fork detection** - Visual alerts when chain health issues detected
+- **📈 Peer visualization** - Histogram showing connected node version distribution
+- **⚙️ Flexible modes** - Choose between boxed or compact display
+- **🔄 Configurable refresh** - Adjust update intervals to your needs
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/pocketnet-watch.git
-   cd pocketnet-watch
-   ```
-
-2. Make the script executable:
-   ```bash
-   chmod +x pocketnet-watch.sh
-   ```
-
-3. Configure the script by editing the `POCKETCOIN_CLI_ARGS` variable to match your setup:
-   ```bash
-   # Edit this line if needed
-   POCKETCOIN_CLI_ARGS="-rpcport=67530 -conf=/path/to/pocketcoin.conf"
-   ```
-   If no custom arguments are required, you can leave this variable empty (`""`), which is the default setting.
-
-## Usage
-
-Run the script from your terminal:
+## Quick Start
 
 ```bash
-./pocketnet-watch.sh
+# Clone the repository
+git clone https://github.com/Pewejekubam/pocketnet_watch.git
+cd pocketnet_watch
+
+# Make executable
+chmod +x watch.py
+
+# Run with default settings
+./watch.py
+
+# Run in compact mode
+./watch.py -c
+
+# Custom refresh interval
+./watch.py -r 10
 ```
 
-### Command-Line Options
-
-- `-h, --help`: Display help message.
-- `-b, --boxed`: Use boxed UI (default).
-- `-c, --compact`: Use compact UI without boxes.
-- `-r, --refresh N`: Set refresh interval to N seconds (default: 5).
-- `--clear N`: Clear screen every N cycles (default: 15).
-
-To exit the monitoring, press `Ctrl+C`.
-
-## Configuration
-
-The script uses the following configuration variables:
-
-- `POCKETCOIN_CLI_ARGS`: Command-line arguments passed to `pocketcoin-cli`.
-- `USE_BOXED_UI`: Set to `true` for boxed UI or `false` for compact UI.
-- `REFRESH_SECONDS`: Time between screen refreshes (default: 5 seconds).
-- `CLEAR_CYCLES`: Number of cycles before clearing the screen (default: 15).
-
-## Functions
-
-The script includes several functions for retrieving and displaying metrics:
-
-| Function | Description |
-|----------|-------------|
-| `get_wallet_balance()` | Retrieves wallet balance with formatting. |
-| `get_node_version()` | Retrieves the Pocketnet node version. |
-| `get_connections_details()` | Displays total, inbound, and outbound connections. |
-| `get_sync_status()` | Shows blockchain sync percentage. |
-| `get_staking_info()` | Provides detailed staking metrics. |
-| `get_debug_log()` | Displays the last 5 lines of the debug log. |
-| `get_system_uptime()` | Retrieves system uptime. |
-| `get_disk_usage()` | Displays disk usage for the blockchain directory. |
+Press `Ctrl+C` to exit.
 
 ## Screenshots
 
-![Screenshot](https://github.com/Pewejekubam/pocketnet_watch/blob/main/watch-screen-shot.png)
+### Boxed Mode (Default)
+![Boxed Mode](box-mode.png)
 
-## Extending the Script
+### Compact Mode
+![Compact Mode](compact-mode.png)
 
-You can easily extend the script to include additional metrics:
+## Requirements
 
-1. Create a new function to retrieve the desired information.
-2. Add the function call to the `display_metrics()` function.
-3. Format the output as needed using `printf`.
+- **Python 3.10+** (included in Ubuntu 22.04+)
+- **pocketcoin-cli** in your PATH
+- Standard utilities: `jq`, `bc`, `du`, `df`, `free`, `top`
 
-Example of adding a new metric:
+## Command-Line Options
 
-```bash
-# Function to get new metric
-get_new_metric() {
-    pocketcoin-cli $POCKETCOIN_CLI_ARGS some_command | jq -r '.some_value'
-}
+```
+./watch.py [options]
 
-# Then add to display_metrics()
-printf "%-32s\n" "New Metric: $(get_new_metric)"
+Options:
+  -h, --help              Show help message and exit
+  -c, --compact           Use compact UI without borders
+  -b, --boxed             Use boxed UI with borders (default)
+  -r, --refresh SECONDS   Set refresh interval (default: 5 seconds)
 ```
 
-## Troubleshooting
+## What's Monitored
 
-If you encounter issues:
+### Node Status
+- Node version
+- Uptime
+- Sync status
+- UTC time
 
-- Ensure `pocketcoin-cli` is properly installed and in your PATH.
-- Verify that `jq` is installed (`apt-get install jq` or `brew install jq`).
-- Check the RPC port and configuration file path in `POCKETCOIN_CLI_ARGS`.
-- Make sure your Pocketnet node is running.
+### Blockchain
+- Block height with fork indicator (✓/⚠)
+- Network difficulty
+- Hash rate
+- Memory pool status
+- Net stake weight
+- Fork alerts (when >3 recent competing chains)
+
+### Connected Nodes
+- Total peer count (In/Out breakdown)
+- Top 3 peer versions with visual histogram
+- Real-time connection monitoring
+
+### Peers & Database
+- Total blockchain database size
+- Combined metrics from blocks, chainstate, indexes, and pocketdb
+
+### Wallet
+- Balance (formatted with commas)
+- Wallet status (Locked/Unlocked/Unencrypted)
+- Unconfirmed balance
+- Highest balance address
+
+### Staking
+- Staking status (TRUE/FALSE)
+- Weight ratio and percentage
+- Time since last reward
+- Expected time to next reward
+- Stake report (1D, 7D, 30D, 1Y)
+- Total stake wins
+
+### System Resources
+- Disk usage
+- CPU usage
+- RAM usage (total/used/free)
+- Swap memory
+- System uptime
+- Load averages
+
+## Display Modes
+
+### Boxed Mode (Default)
+Beautiful bordered sections with clear visual separation:
+```
+┌─ Node_Status ──────────────────────────────────────┐
+│ Node Version: v221900  Node Time: 2025-10-19 UTC   │
+│ Uptime: 10d 18h        Sync Status: 100%           │
+└────────────────────────────────────────────────────┘
+```
+
+### Compact Mode (`-c`)
+Space-efficient display without borders:
+```
+-- Node_Status --
+Node Version: v221900
+Node Time: 2025-10-19 UTC
+Uptime: 10d 18h
+Sync Status: 100%
+```
+
+## Version History
+
+### v2.0.0 (2025-10-19) - Major Architecture Shift
+- **Complete rewrite in Python** with curses library
+- Flicker-free rendering with double-buffering
+- Hidden cursor during updates
+- Terminal color scheme adaptation
+- Fork detection with visual indicators
+- Multi-line peer version histogram
+- Improved time formatting
+- Enhanced error handling
+- All Bash v0.6.0 features preserved
+
+### v0.6.0 (2025-10-18) - Bash Refactor
+- JSON-driven UI configuration
+- Modular metric functions
+- Improved code organization
+
+### Legacy Versions (v0.0 - v0.5.0)
+See `legacy/` directory for historical versions.
+
+## Documentation
+
+For detailed documentation including:
+- Advanced configuration
+- JSON layout customization
+- Extending with custom metrics
+- Troubleshooting guide
+- Architecture details
+
+See **[DOCUMENTATION.md](docs/DOCUMENTATION.md)**
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/amazing-feature`).
-3. Commit your changes (`git commit -m 'Add some amazing feature'`).
-4. Push to the branch (`git push origin feature/amazing-feature`).
-5. Open a Pull Request.
+Contributions are welcome! Please feel free to:
+- Submit pull requests
+- Open issues for bugs or feature requests
+- Improve documentation
+- Share feedback
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - See [LICENSE](LICENSE) file for details.
 
-## Acknowledgements
+## Acknowledgments
 
-- The Pocketnet community.
-- Contributors to the jq project.
+- Built for the **Pocketnet community**
+- Powered by **Claude Sonnet 4.5**
+- Thanks to all contributors and testers
+
+---
+
+**Need help?** Open an issue or check the [full documentation](docs/DOCUMENTATION.md).

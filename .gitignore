@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+debug.log
+*.log.*
+
+# Test files
+watch-debug.log
+test_*.py
+*_test.py
+
+# Local configuration
+.pocketnet_watch_config.json
+config.local.json
+*.local
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Development/Testing
+testing/
