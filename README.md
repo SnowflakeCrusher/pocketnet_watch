@@ -18,6 +18,8 @@ Pocketnet Watch is a comprehensive monitoring tool for Pocketnet node operators.
 - **📈 Peer visualization** - Histogram showing connected node version distribution
 - **⚙️ Flexible modes** - Choose between boxed or compact display
 - **🔄 Configurable refresh** - Adjust update intervals to your needs
+- 🔧 Config file support - Persistent settings without command-line flags
+- 🧪 Connection testing - Built-in connection test mode for debugging
 
 ## Quick Start
 
@@ -37,9 +39,43 @@ chmod +x watch.py
 
 # Custom refresh interval
 ./watch.py -r 10
+
+# Test connection to pocketcoin-cli
+./watch.py --test-connection
 ```
 
 Press `Ctrl+C` to exit.
+
+## Configuration
+Pocketnet Watch now supports a configuration file for persistent settings. On first run, if no config file exists, it creates one from the provided example template.
+
+**Configuration file location**: `pocketnet_watch_config.ini` in the same directory as the script.
+
+**Configuration sections**:
+```ini
+[pocketcoin]
+# Command-line arguments passed to pocketcoin-cli (e.g., "-rpcport=38081 -conf=/path/to/pocketcoin.conf")
+# Leave empty for default configuration
+cli_args =
+
+# Data directory path (default: ~/.pocketcoin)
+data_dir = ~/.pocketcoin
+
+[ui]
+# Refresh interval in seconds (default: 5)
+refresh_seconds = 5
+
+# UI display mode - true for boxed UI with borders, false for compact mode (default: true)
+use_boxed_ui = true
+
+[logs]
+# Path to probe nodes log file (default: ~/probe_nodes/probe_nodes.log)
+probe_nodes_log = ~/probe_nodes/probe_nodes.log
+```
+# Create config from example (done automatically on first run if missing)
+cp pocketnet_watch_config.ini.example pocketnet_watch_config.ini
+# Then edit the config file to your preferences
+vi pocketnet_watch_config.ini
 
 ## Screenshots
 
@@ -51,7 +87,7 @@ Press `Ctrl+C` to exit.
 
 ## Requirements
 
-- **Python 3.10+** (included in Ubuntu 22.04+)
+- **Python 3.10+** (included in both Ubuntu 22.04+ and Debian 12+)
 - **pocketcoin-cli** in your PATH
 - Standard utilities: `jq`, `bc`, `du`, `df`, `free`, `top`
 
@@ -65,7 +101,18 @@ Options:
   -c, --compact           Use compact UI without borders
   -b, --boxed             Use boxed UI with borders (default)
   -r, --refresh SECONDS   Set refresh interval (default: 5 seconds)
+  -t, --test-connection   Test the connection to the pocketcoind and exit
 ```
+## Connection Testing
+If you're having issues connecting to pocketcoin-cli, use the --test-connection flag:
+``
+./watch.py --test-connection
+``
+
+This will:
+- Load your configuration file
+- Test the pocketcoin-cli connection with the configured arguments
+- Show detailed output about the connection attempt and any errors encountered
 
 ## What's Monitored
 
@@ -136,6 +183,11 @@ Sync Status: 100%
 ```
 
 ## Version History
+### v2.1.0 (2026-07-10) - Configuration introduction
+- New: Configuration file support (pocketnet_watch_config.ini)
+- New: Configurable paths for data directory and log files
+- New: Connection test mode (--test-connection)
+- New: Improved CLI integration via _run_cli method
 
 ### v2.0.0 (2025-10-19) - Major Architecture Shift
 - **Complete rewrite in Python** with curses library

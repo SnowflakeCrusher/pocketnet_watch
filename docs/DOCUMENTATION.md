@@ -63,13 +63,14 @@ If you see the monitoring dashboard, you're ready to go!
 ./watch.py [OPTIONS]
 ```
 
-| Option            | Description                 | Default  |
-|-------------------|-----------------------------|----------|
-| `-h, --help`      | Show help message           |     -    |
-| `-c, --compact`   | Use compact UI (no borders) | Boxed UI |
-| `-b, --boxed`     | Use boxed UI (with borders) | Enabled  |
-| `-r, --refresh N` | Refresh interval in seconds | 5        |
-|-------------------|-----------------------------|----------|
+| Option                 | Description                 | Default  |
+|------------------------|-----------------------------|----------|
+| `-h, --help`           | Show help message           |     -    |
+| `-c, --compact`        | Use compact UI (no borders) | Boxed UI |
+| `-b, --boxed`          | Use boxed UI (with borders) | Enabled  |
+| `-r, --refresh N`      | Refresh interval in seconds | 5        |
+| `-t, --test-connection | Test the connection         |     -    |
+|------------------------|-----------------------------|----------|
 
 **Examples:**
 ```bash
@@ -81,21 +82,41 @@ If you see the monitoring dashboard, you're ready to go!
 
 # Boxed mode with 10-second refresh
 ./watch.py -b -r 10
+
+# Test connection to pocketcoin-cli
+./watch.py --test-connection
 ```
 
-### Environment Variables
+## Configuration
+Pocketnet Watch now supports a configuration file for persistent settings. On first run, if no config file exists, it creates one from the provided example template.
 
-If your `pocketcoin-cli` requires special arguments, edit the `POCKETCOIN_CLI_ARGS` variable in `watch.py`:
+**Configuration file location**: `pocketnet_watch_config.ini` in the same directory as the script.
 
-```python
-# Line 41 in watch.py
-POCKETCOIN_CLI_ARGS = ""  # Add custom args here if needed
+**Configuration sections**:
+```ini
+[pocketcoin]
+# Command-line arguments passed to pocketcoin-cli (e.g., "-rpcport=38081 -conf=/path/to/pocketcoin.conf")
+# Leave empty for default configuration
+cli_args =
+
+# Data directory path (default: ~/.pocketcoin)
+data_dir = ~/.pocketcoin
+
+[ui]
+# Refresh interval in seconds (default: 5)
+refresh_seconds = 5
+
+# UI display mode - true for boxed UI with borders, false for compact mode (default: true)
+use_boxed_ui = true
+
+[logs]
+# Path to probe nodes log file (default: ~/probe_nodes/probe_nodes.log)
+probe_nodes_log = ~/probe_nodes/probe_nodes.log
 ```
-
-Example for custom RPC port:
-```python
-POCKETCOIN_CLI_ARGS = "-rpcport=38081"
-```
+# Create config from example (done automatically on first run if missing)
+cp pocketnet_watch_config.ini.example pocketnet_watch_config.ini
+# Then edit the config file to your preferences
+vi pocketnet_watch_config.ini
 
 ### Custom Refresh Rate
 
@@ -475,7 +496,6 @@ Before submitting a PR:
 - Add new metrics (bandwidth, transaction history, etc.)
 - Improve error messages
 - Add color coding for warnings/errors
-- Create configuration file support
 - Add interactive features (pause, sort, filter)
 - Improve documentation
 - Add unit tests
@@ -484,6 +504,13 @@ Before submitting a PR:
 ---
 
 ## Changelog
+
+### v2.1.0 (2026-07-10) - Configuration introduction
+
+- New: Configuration file support (pocketnet_watch_config.ini)
+- New: Configurable paths for data directory and log files
+- New: Connection test mode (--test-connection)
+- New: Improved CLI integration via _run_cli method
 
 ### v2.0.0 (2025-10-19) - Python Rewrite
 
@@ -557,5 +584,5 @@ A: Not yet, but it's a great contribution idea!
 
 ---
 
-**Last Updated**: 2025-10-19
-**Version**: 2.0.0
+**Last Updated**: 2026-07-10
+**Version**: 2.1.0
