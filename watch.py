@@ -30,27 +30,39 @@ import json
 import subprocess
 import time
 import os
+import shutil
 import argparse
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import configparser
 
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
+# Default paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "pocketnet_watch_config.ini")
+EXAMPLE_CONFIG_FILE = os.path.join(SCRIPT_DIR, "pocketnet_watch_config.ini.example")
+DEFAULT_DATA_DIR = os.path.expanduser("~/.pocketcoin")
+DEFAULT_PROBE_NODES_LOG = os.path.expanduser("~/probe_nodes/probe_nodes.log")
 
-# Command-line arguments passed to pocketcoin-cli (e.g., "-rpcport=38081")
-# Leave empty for default configuration
-POCKETCOIN_CLI_ARGS = ""
+# Load configuration - create from example if it doesn't exist
+config = configparser.ConfigParser()
 
-# Default refresh interval in seconds - balances real-time updates vs system load
-REFRESH_SECONDS = 5
+if not os.path.exists(CONFIG_FILE) and os.path.exists(EXAMPLE_CONFIG_FILE):
+    print(f"Creating default config file: {CONFIG_FILE}")
+    shutil.copy(EXAMPLE_CONFIG_FILE, CONFIG_FILE)
+config.read(CONFIG_FILE)
 
-# User's home directory - used for constructing paths to logs and data directories
-HOME = os.path.expanduser("~")
+# Get configuration values or use defaults
+POCKETCOIN_CLI_ARGS = config.get('pocketcoin', 'cli_args', fallback="")
+REFRESH_SECONDS = config.getint('ui', 'refresh_seconds', fallback=5)
+USE_BOXED_UI = config.getboolean('ui', 'use_boxed_ui', fallback=True)
+DATA_DIR = config.get('pocketcoin', 'data_dir', fallback=DEFAULT_DATA_DIR)
+PROBE_NODES_LOG = config.get('logs', 'probe_nodes_log', fallback=DEFAULT_PROBE_NODES_LOG)
 
 # UI display mode - True for boxed UI with borders, False for compact mode
 # Can be overridden via command-line arguments (-c or -b)
-USE_BOXED_UI = True
 
 # Default JSON configuration for UI_SECTIONS
 # This defines the layout, metrics, and structure of the monitoring dashboard.
@@ -296,13 +308,13 @@ DEFAULT_UI_SECTIONS = {
     },
     "Debug_Log": {
         "file": {
-            "path": f"{HOME}/.pocketcoin/debug.log",
+            "path": f"{DATA_DIR}/debug.log",
             "lines": 5
         }
     },
     "Probe_Nodes_Log": {
         "file": {
-            "path": f"{HOME}/probe_nodes/probe_nodes.log",
+            "path": PROBE_NODES_LOG,
             "lines": 7
         }
     }
@@ -523,11 +535,13 @@ class MetricCollector:
 
     def get_node_uptime(self) -> str:
         try:
-            result = subprocess.run(f"pocketcoin-cli {POCKETCOIN_CLI_ARGS} uptime",
-                                    shell=True, capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                uptime_seconds = int(result.stdout.strip())
-                return format_time_seconds(uptime_seconds)
+            # Use _run_cli instead of direct subprocess
+            result = self.cache._run_cli("uptime")
+            if isinstance(result, int):
+                uptime_seconds = result
+            elif isinstance(result, str) and result.isdigit():
+                uptime_seconds = int(result)
+            return format_time_seconds(uptime_seconds)
         except:
             pass
         return "Unknown"
@@ -571,8 +585,7 @@ class MetricCollector:
 
         # Query chain tips for fork detection (not cached - needs to be real-time)
         try:
-            result = subprocess.run("pocketcoin-cli getchaintips",
-                                    shell=True, capture_output=True, text=True, timeout=5)
+            result = self._run_cli("getchaintips")
             if result.returncode == 0:
                 tips = json.loads(result.stdout)
 
@@ -601,22 +614,23 @@ class MetricCollector:
 
     def get_network_hashps(self) -> str:
         try:
-            result = subprocess.run(f"pocketcoin-cli {POCKETCOIN_CLI_ARGS} getnetworkhashps",
-                                    shell=True, capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                hashps = float(result.stdout.strip())
+            result = self.cache._run_cli("getnetworkhashps")
+            try:
+                hashps = float(result)
+            except (TypeError, ValueError):
+                return "Unknown"
 
-                if hashps > 1000000000000:
-                    return f"{hashps/1000000000000:.2f} TH/s"
-                elif hashps > 1000000000:
-                    return f"{hashps/1000000000:.2f} GH/s"
-                elif hashps > 1000000:
-                    return f"{hashps/1000000:.2f} MH/s"
-                elif hashps > 1000:
-                    return f"{hashps/1000:.2f} KH/s"
-                else:
-                    return f"{hashps:.2f} H/s"
-        except:
+            if hashps > 1_000_000_000_000:
+                return f"{hashps/1_000_000_000_000:.2f} TH/s"
+            elif hashps > 1_000_000_000:
+                return f"{hashps/1_000_000_000:.2f} GH/s"
+            elif hashps > 1_000_000:
+                return f"{hashps/1_000_000:.2f} MH/s"
+            elif hashps > 1_000:
+                return f"{hashps/1_000:.2f} KH/s"
+            else:
+                return f"{hashps:.2f} H/s"
+        except Exception:
             pass
         return "Unknown"
 
@@ -643,8 +657,7 @@ class MetricCollector:
             # Get current height
             blocks = self.cache.blockchain_info.get('blocks', 0)
 
-            result = subprocess.run("pocketcoin-cli getchaintips",
-                                    shell=True, capture_output=True, text=True, timeout=5)
+            result = self._run_cli("getchaintips")
             if result.returncode == 0:
                 tips = json.loads(result.stdout)
                 # Only count recent valid forks (within 100 blocks of current height)
@@ -689,13 +702,11 @@ class MetricCollector:
             "87 total (In:77/Out:10)\\n  v0.22.19  85 (98%) ###############"
         """
         try:
-            # Query peer information
-            result = subprocess.run(f"pocketcoin-cli {POCKETCOIN_CLI_ARGS} getpeerinfo",
-                                    shell=True, capture_output=True, text=True, timeout=5)
-            if result.returncode != 0:
+            # Use _run_cli instead of direct subprocess
+            peer_info = self.cache._run_cli("getpeerinfo")
+            if not peer_info or 'error' in peer_info:
                 return "No peers connected"
 
-            peer_info = json.loads(result.stdout)
             total_peers = len(peer_info)
 
             if total_peers == 0:
@@ -739,11 +750,9 @@ class MetricCollector:
 
     def get_blockchain_size(self) -> str:
         """Calculate total blockchain database size"""
-        blockchain_dir = f"{HOME}/.pocketcoin"
-
+        blockchain_dir = DATA_DIR
         if not os.path.isdir(blockchain_dir):
             return "Directory not found"
-
         try:
             # Get sizes in KB for all four components
             def get_dir_size_kb(path):
@@ -883,7 +892,7 @@ class MetricCollector:
     # System Resource Metrics
 
     def get_disk_usage(self) -> str:
-        blockchain_dir = f"{HOME}/.pocketcoin"
+        blockchain_dir = DATA_DIR
         try:
             result = subprocess.run(f"df -h {blockchain_dir}", shell=True, capture_output=True, text=True)
             if result.returncode == 0:
@@ -1273,6 +1282,58 @@ def main(stdscr, use_boxed: bool, refresh_seconds: int):
         # Sleep before next update (reduces CPU and node load)
         time.sleep(refresh_seconds)
 
+def test_connection():
+    """Test function to check pocketcoin-cli connection with config settings"""
+    import configparser
+    import os
+    import subprocess
+
+    # Load config the same way the script does
+    CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pocketnet_watch_config.ini")
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+
+    POCKETCOIN_CLI_ARGS = config.get('pocketcoin', 'cli_args', fallback="")
+
+    print("Testing pocketcoin-cli connection...")
+    print(f"Config file: {CONFIG_FILE}")
+    print(f"Using CLI args: '{POCKETCOIN_CLI_ARGS}'")
+
+    # Create a temporary cache instance to use _run_cli
+    class TempCache:
+        def _run_cli(self, command: str) -> Any:
+            try:
+                cmd = f"pocketcoin-cli {POCKETCOIN_CLI_ARGS} {command}"
+                print(f"Running command: {cmd}")
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                print(f"Return code: {result.returncode}")
+                if result.stdout:
+                    print(f"STDOUT: {result.stdout}")
+                if result.stderr:
+                    print(f"STDERR: {result.stderr}")
+                if result.returncode == 0 and result.stdout.strip():
+                    return json.loads(result.stdout)
+                return {} if command != "listaddressgroupings" else []
+            except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
+                print(f"EXCEPTION: {e}")
+                return {} if command != "listaddressgroupings" else []
+
+    try:
+        cache = TempCache()
+        data = cache._run_cli("getblockchaininfo")
+        if result.returncode == 0:
+            print("SUCCESS: pocketcoin-cli is working!")
+            try:
+                data = json.loads(result.stdout)
+                print(f"Block height: {data.get('blocks', 'Unknown')}")
+                print(f"Headers: {data.get('headers', 'Unknown')}")
+            except json.JSONDecodeError:
+                print("Could not parse JSON response")
+        else:
+            print("ERROR: pocketcoin-cli failed")
+
+    except Exception as e:
+        print(f"EXCEPTION: {e}")
 
 if __name__ == "__main__":
     """
@@ -1303,8 +1364,12 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--refresh', type=int, default=REFRESH_SECONDS,
                         help=f'Refresh interval in seconds (default: {REFRESH_SECONDS})')
 
+    parser.add_argument('--test-connection', action='store_true',
+                        help='Test the pocketcoin-cli connection and exit')
     args = parser.parse_args()
-
+    if args.test_connection:
+        test_connection()
+        exit(0)
     # Determine UI mode from arguments (compact takes precedence)
     use_boxed = not args.compact if args.compact else USE_BOXED_UI
     refresh_seconds = args.refresh
