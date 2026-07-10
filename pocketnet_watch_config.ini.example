@@ -1,0 +1,21 @@
+# Pocketnet Watch Configuration File
+# Copy this file to pocketnet_watch_config.ini and modify as needed
+
+[pocketcoin]
+# Arguments to pass to pocketcoin-cli
+# Example: cli_args = -rpcport=38081 -conf=/path/to/pocketcoin.conf
+cli_args = 
+
+# Path to the pocketcoin data directory
+data_dir = ~/.pocketcoin
+
+[ui]
+# Refresh interval in seconds
+refresh_seconds = 5
+
+# Use boxed UI with borders (True) or compact mode (False)
+use_boxed_ui = True
+
+[logs]
+# Path to the probe_nodes log file
+probe_nodes_log = ~/probe_nodes/probe_nodes.log

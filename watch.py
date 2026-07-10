@@ -32,6 +32,7 @@ import time
 import os
 import shutil
 import argparse
+import sys
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import configparser
@@ -1284,56 +1285,57 @@ def main(stdscr, use_boxed: bool, refresh_seconds: int):
 
 def test_connection():
     """Test function to check pocketcoin-cli connection with config settings"""
-    import configparser
-    import os
-    import subprocess
-
-    # Load config the same way the script does
-    CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pocketnet_watch_config.ini")
-    config = configparser.ConfigParser()
-    config.read(CONFIG_FILE)
-
-    POCKETCOIN_CLI_ARGS = config.get('pocketcoin', 'cli_args', fallback="")
 
     print("Testing pocketcoin-cli connection...")
     print(f"Config file: {CONFIG_FILE}")
     print(f"Using CLI args: '{POCKETCOIN_CLI_ARGS}'")
+    print("-" * 60)
 
-    # Create a temporary cache instance to use _run_cli
     class TempCache:
         def _run_cli(self, command: str) -> Any:
             try:
                 cmd = f"pocketcoin-cli {POCKETCOIN_CLI_ARGS} {command}"
                 print(f"Running command: {cmd}")
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
                 print(f"Return code: {result.returncode}")
+
                 if result.stdout:
-                    print(f"STDOUT: {result.stdout}")
+                    print(f"STDOUT length: {len(result.stdout)} characters")
                 if result.stderr:
-                    print(f"STDERR: {result.stderr}")
+                    print(f"STDERR: {result.stderr.strip()}")
+
                 if result.returncode == 0 and result.stdout.strip():
-                    return json.loads(result.stdout)
-                return {} if command != "listaddressgroupings" else []
-            except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception) as e:
-                print(f"EXCEPTION: {e}")
-                return {} if command != "listaddressgroupings" else []
+                    try:
+                        data = json.loads(result.stdout)
+                        print("\n✅ SUCCESS: pocketcoin-cli is responding correctly!")
+                        print(f"Block height : {data.get('blocks', 'Unknown')}")
+                        print(f"Headers      : {data.get('headers', 'Unknown')}")
+                        print(f"Chain        : {data.get('chain', 'Unknown')}")
+                        print(f"Verification : {data.get('verificationprogress', 0):.4f}")
+                        return data
+                    except json.JSONDecodeError:
+                        print("❌ Could not parse JSON response")
+                        return None
+                else:
+                    print("❌ Command failed or returned no output")
+                    return None
 
-    try:
-        cache = TempCache()
-        data = cache._run_cli("getblockchaininfo")
-        if result.returncode == 0:
-            print("SUCCESS: pocketcoin-cli is working!")
-            try:
-                data = json.loads(result.stdout)
-                print(f"Block height: {data.get('blocks', 'Unknown')}")
-                print(f"Headers: {data.get('headers', 'Unknown')}")
-            except json.JSONDecodeError:
-                print("Could not parse JSON response")
-        else:
-            print("ERROR: pocketcoin-cli failed")
+            except Exception as e:
+                print(f"❌ EXCEPTION: {e}")
+                return None
 
-    except Exception as e:
-        print(f"EXCEPTION: {e}")
+    # Run the test
+    print("\nExecuting test query...")
+    cache = TempCache()
+    cache._run_cli("getblockchaininfo")
 
 if __name__ == "__main__":
     """
@@ -1343,11 +1345,13 @@ if __name__ == "__main__":
         -c, --compact: Use compact mode (no boxes)
         -b, --boxed: Use boxed mode with borders (default)
         -r, --refresh N: Update every N seconds (default: 5)
+        -t, --test-connection: Test the pocketcoin-cli connection and exit
 
     Example Usage:
-        ./watch.py                  # Default: boxed mode, 5s refresh
-        ./watch.py -c -r 3          # Compact mode, 3s refresh
-        ./watch.py --boxed -r 10    # Boxed mode, 10s refresh
+        ./watch.py                    # Default: boxed mode, 5s refresh
+        ./watch.py -c -r 3            # Compact mode, 3s refresh
+        ./watch.py --boxed -r 10      # Boxed mode, 10s refresh
+        ./watch.py --test-connection  # Test connection with pocketcoin-cli
 
     Press Ctrl+C to exit gracefully.
     """
@@ -1363,13 +1367,18 @@ if __name__ == "__main__":
                         help='Use boxed UI with borders (default)')
     parser.add_argument('-r', '--refresh', type=int, default=REFRESH_SECONDS,
                         help=f'Refresh interval in seconds (default: {REFRESH_SECONDS})')
-
-    parser.add_argument('--test-connection', action='store_true',
+    parser.add_argument('-t', '--test-connection',
+                        action='store_true',
+                        dest='test_connection',
                         help='Test the pocketcoin-cli connection and exit')
+
     args = parser.parse_args()
+
+    # Handle test connection early
     if args.test_connection:
         test_connection()
-        exit(0)
+        sys.exit(0)
+
     # Determine UI mode from arguments (compact takes precedence)
     use_boxed = not args.compact if args.compact else USE_BOXED_UI
     refresh_seconds = args.refresh

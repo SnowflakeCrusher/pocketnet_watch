@@ -44,6 +44,7 @@ test_*.py
 # Local configuration
 .pocketnet_watch_config.json
 config.local.json
+pocketnet_watch_config.ini
 *.local
 
 # Temporary files
